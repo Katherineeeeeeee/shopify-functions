@@ -1,3 +1,4 @@
+import "dotenv/config.js";
 import { join } from "path";
 import { readFileSync } from "fs";
 import express from "express";
@@ -5,18 +6,7 @@ import serveStatic from "serve-static";
 
 import shopify from "./shopify.js";
 import GDPRWebhookHandlers from "./gdpr.js";
-
-const port = process.env.BACKEND_PORT || process.env.PORT;
-if (!port) {
-  throw new Error("Set process.env.BACKEND_PORT or process.env.PORT");
-}
-
-const PORT = parseInt(port, 10);
-
-const STATIC_PATH =
-  process.env.NODE_ENV === "production"
-    ? `${process.cwd()}/frontend/dist`
-    : `${process.cwd()}/frontend/`;
+import { PORT, STATIC_PATH } from "./config/env.js";
 
 const app = express();
 

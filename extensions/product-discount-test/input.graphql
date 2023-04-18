@@ -1,0 +1,21 @@
+query Input {
+  cart {
+    lines {
+      quantity
+      merchandise {
+        __typename
+        ... on ProductVariant {
+          id
+        }
+      }
+    }
+  }
+  discountNode {
+    metafield(
+      namespace: "product-discount-test"
+      key: "function-configuration"
+    ) {
+      value
+    }
+  }
+}

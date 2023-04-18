@@ -13,7 +13,9 @@
   },
   "dependencies": {
     "@shopify/app": "3.45.1",
-    "@shopify/cli": "3.45.1"
+    "@shopify/cli": "3.45.1",
+    "@shopify/shopify_function": "^0.0.3",
+    "javy": "^0.1.0"
   },
   "author": "hennadii"
 }
