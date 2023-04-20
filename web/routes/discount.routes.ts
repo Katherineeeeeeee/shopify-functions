@@ -1,42 +1,35 @@
 import { Router } from "express";
-import { Session } from "@shopify/shopify-api";
 import {
-  CreateDiscountParams,
-  createDiscount,
+  runDiscountMutation,
+  runDiscountQuery,
 } from "../services/discount.service.js";
-import shopify from "../utils/shopify.js";
+import {
+  CREATE_AUTOMATIC_MUTATION,
+  CREATE_CODE_MUTATION,
+  UPDATE_AUTOMATIC_MUTATION,
+  UPDATE_CODE_MUTATION,
+} from "../queries/discount.queries.js";
 
 const discountRouter = Router();
 
-discountRouter.use("/discount/create", (req, res, next) => {
-  const body = req.body;
-
-  if (
-    body.name &&
-    typeof body.name === "string" &&
-    body.quantity &&
-    body.percentage &&
-    typeof body.percentage == "number"
-  ) {
-    res.locals.discountData = {
-      percentage: body.percentage,
-      quantity: parseInt(body.quantity, 10),
-      name: body.name,
-    };
-    next();
-  } else {
-    res.sendStatus(503);
-  }
+discountRouter.post("/discounts/code", async (req, res) => {
+  await runDiscountMutation(req, res, CREATE_CODE_MUTATION);
 });
 
-discountRouter.post("/discount/create", async (req, res) => {
-  const session = res.locals.shopify.session as Session;
+discountRouter.post("/discounts/automatic", async (req, res) => {
+  await runDiscountMutation(req, res, CREATE_AUTOMATIC_MUTATION);
+});
 
-  const discountData = res.locals.discountData as CreateDiscountParams;
+discountRouter.post("/discount/find", async (req, res) => {
+  await runDiscountQuery(req, res);
+});
 
-  await createDiscount(discountData, session);
+discountRouter.patch("/discounts/code", async (req, res) => {
+  await runDiscountMutation(req, res, UPDATE_CODE_MUTATION);
+});
 
-  res.sendStatus(201);
+discountRouter.patch("/discounts/automatic", async (req, res) => {
+  await runDiscountMutation(req, res, UPDATE_AUTOMATIC_MUTATION);
 });
 
 export { discountRouter };

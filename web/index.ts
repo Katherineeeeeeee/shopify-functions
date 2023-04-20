@@ -7,7 +7,7 @@ import serveStatic from "serve-static";
 import shopify from "./utils/shopify.js";
 import GDPRWebhookHandlers from "./gdpr.js";
 import { PORT, STATIC_PATH } from "./config/env.js";
-//Discount
+
 import { discountRouter } from "./routes/discount.routes.js";
 
 const app = express();

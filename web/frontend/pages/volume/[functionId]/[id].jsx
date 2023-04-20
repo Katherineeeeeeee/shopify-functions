@@ -23,20 +23,63 @@ import {
   Page,
   TextField,
   PageActions,
+  Spinner,
 } from "@shopify/polaris";
 import { useAuthenticatedFetch } from "../../../hooks";
+import { useEffect, useState } from "react";
 
 const todaysDate = new Date();
 const METAFIELD_NAMESPACE = "$app:volume-discount";
 const METAFIELD_CONFIGURATION_KEY = "function-configuration";
 
-export default function VolumeNew() {
-  const { functionId } = useParams();
+export default function VolumeChange() {
+  const authenticatedFetch = useAuthenticatedFetch();
+  const { functionId, id } = useParams();
+
+  const [discountData, setDiscountData] = useState();
+
+  useEffect(async () => {
+    const res = await authenticatedFetch("/api/discount/find", {
+      method: "POST",
+      headers: {
+        "Content-type": "application/json",
+      },
+      body: JSON.stringify({ id }),
+    });
+
+    const json = await res.json();
+    setDiscountData(json.data.discountNode);
+  }, []);
+
+  if (!discountData) {
+    return (
+      <div
+        style={{
+          position: "fixed",
+          top: "50%",
+          left: "50%",
+          width: "fit-content",
+          height: "fit-content",
+          transform: "translate(-50%, -50%)",
+        }}
+      >
+        <Spinner />
+      </div>
+    );
+  }
+
+  return <VolumeEdit discountData={discountData} functionId={functionId} />;
+}
+
+function VolumeEdit({ discountData, functionId }) {
+  console.log(discountData);
+  const configurationInitial = JSON.parse(discountData.metafield.value);
+
+  const authenticatedFetch = useAuthenticatedFetch();
 
   const app = useAppBridge();
   const redirect = Redirect.create(app);
   const currencyCode = CurrencyCode.Usd;
-  const authenticatedFetch = useAuthenticatedFetch();
 
   const {
     fields: {
@@ -61,24 +104,40 @@ export default function VolumeNew() {
     makeClean,
   } = useForm({
     fields: {
-      discountTitle: useField(""),
-      discountMethod: useField(DiscountMethod.Code),
-      discountCode: useField(""),
-      combinesWith: useField({
-        orderDiscounts: false,
-        productDiscounts: false,
-        shippingDiscounts: false,
-      }),
+      discountTitle: useField(discountData.discount.title),
+      discountMethod: useField(
+        discountData.discount.__typename === "DiscountAutomaticApp"
+          ? DiscountMethod.Automatic
+          : DiscountMethod.Code
+      ),
+      discountCode: useField(discountData.discount.title),
+      combinesWith: useField(discountData.discount.combinesWith),
       requirementType: useField(RequirementType.None),
       requirementSubtotal: useField("0"),
       requirementQuantity: useField("0"),
-      usageTotalLimit: useField(null),
-      usageOncePerCustomer: useField(false),
-      startDate: useField(todaysDate),
-      endDate: useField(null),
+      usageTotalLimit: useField(
+        discountData.discount.__typename === "DiscountAutomaticApp"
+          ? null
+          : discountData.discount.usageLimit
+      ),
+      usageOncePerCustomer: useField(
+        discountData.discount.__typename === "DiscountAutomaticApp"
+          ? false
+          : discountData.discount.appliesOncePerCustomer
+      ),
+      startDate: useField(
+        discountData.discount.startsAt
+          ? new Date(discountData.discount.startsAt)
+          : todaysDate
+      ),
+      endDate: useField(
+        discountData.discount.endsAt
+          ? new Date(discountData.discount.endsAt)
+          : null
+      ),
       configuration: {
-        quantity: useField("1"),
-        percentage: useField("0"),
+        quantity: useField(configurationInitial.quantity),
+        percentage: useField(configurationInitial.percentage),
       },
     },
     onSubmit: async (form) => {
@@ -92,6 +151,7 @@ export default function VolumeNew() {
             namespace: METAFIELD_NAMESPACE,
             key: METAFIELD_CONFIGURATION_KEY,
             type: "json",
+            id: discountData.metafield.id,
             value: JSON.stringify({
               quantity: parseInt(form.configuration.quantity),
               percentage: parseFloat(form.configuration.percentage),
@@ -103,18 +163,19 @@ export default function VolumeNew() {
       let response;
       if (form.discountMethod === DiscountMethod.Automatic) {
         response = await authenticatedFetch("/api/discounts/automatic", {
-          method: "POST",
+          method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             discount: {
               ...discount,
               title: form.discountTitle,
             },
+            id: discountData.id,
           }),
         });
       } else {
         response = await authenticatedFetch("/api/discounts/code", {
-          method: "POST",
+          method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             discount: {
@@ -122,8 +183,11 @@ export default function VolumeNew() {
               title: form.discountCode,
               code: form.discountCode,
               appliesOncePerCustomer: form.usageOncePerCustomer,
-              usageLimit: Number(form.usageTotalLimit),
+              usageLimit: form.usageTotalLimit
+                ? Number(form.usageTotalLimit)
+                : null,
             },
+            id: discountData.id,
           }),
         });
       }
@@ -168,6 +232,14 @@ export default function VolumeNew() {
         disabled: !dirty,
         loading: submitting,
       }}
+      secondaryActions={[
+        {
+          content: "Reset",
+          onAction: reset,
+          disabled: !dirty,
+          loading: submitting,
+        },
+      ]}
     >
       <Layout>
         {errorBanner}
@@ -220,11 +292,13 @@ export default function VolumeNew() {
                   ? discountTitle.value
                   : discountCode.value,
               appDiscountType: "Volume",
-              isEditing: false,
+              isEditing: true,
             }}
             performance={{
-              status: DiscountStatus.Scheduled,
-              usageCount: 0,
+              status: discountData.discount.status,
+              usageCount:
+                discountData.discount.codeCount ||
+                discountData.discount.asyncUsageCount,
             }}
             minimumRequirements={{
               requirementType: requirementType.value,
