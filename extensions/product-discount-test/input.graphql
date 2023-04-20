@@ -12,7 +12,7 @@ query Input {
   }
   discountNode {
     metafield(
-      namespace: "product-discount-test"
+      namespace: "$app:volume-discount"
       key: "function-configuration"
     ) {
       value

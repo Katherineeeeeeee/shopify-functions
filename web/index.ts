@@ -4,9 +4,11 @@ import { readFileSync } from "fs";
 import express from "express";
 import serveStatic from "serve-static";
 
-import shopify from "./shopify.js";
+import shopify from "./utils/shopify.js";
 import GDPRWebhookHandlers from "./gdpr.js";
 import { PORT, STATIC_PATH } from "./config/env.js";
+//Discount
+import { discountRouter } from "./routes/discount.routes.js";
 
 const app = express();
 
@@ -16,14 +18,16 @@ app.get(
   shopify.auth.callback(),
   shopify.redirectToShopifyOrAppRoot()
 );
+
 app.post(
   shopify.config.webhooks.path,
   shopify.processWebhooks({ webhookHandlers: GDPRWebhookHandlers })
 );
+app.use(express.json());
 
 app.use("/api/*", shopify.validateAuthenticatedSession());
 
-app.use(express.json());
+app.use("/api", discountRouter);
 
 app.use(shopify.cspHeaders());
 app.use(serveStatic(STATIC_PATH, { index: false }));

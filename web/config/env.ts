@@ -9,8 +9,13 @@ const STATIC_PATH =
     ? `${process.cwd()}/frontend/dist`
     : `${process.cwd()}/frontend/`;
 
-console.log(STATIC_PATH);
-
 const DB_PATH = `${process.cwd()}/database.sqlite`;
 
-export { PORT, STATIC_PATH, DB_PATH };
+const SHOPIFY_PRODUCT_DISCOUNT_TEST_ID =
+  process.env.SHOPIFY_PRODUCT_DISCOUNT_TEST_ID;
+
+if (!SHOPIFY_PRODUCT_DISCOUNT_TEST_ID) {
+  throw new Error("Set SHOPIFY_PRODUCT_DISCOUNT_TEST_ID");
+}
+
+export { PORT, STATIC_PATH, DB_PATH, SHOPIFY_PRODUCT_DISCOUNT_TEST_ID };

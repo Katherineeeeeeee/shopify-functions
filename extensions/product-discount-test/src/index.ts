@@ -22,13 +22,14 @@ export default (input: InputQuery): FunctionResult => {
   if (!configuration.quantity || !configuration.percentage) {
     return EMPTY_DISCOUNT;
   }
-  const targetsLines = input.cart.lines.filter(
-    (line) =>
-      line.quantity >= configuration.quantity &&
-      line.merchandise.__typename == "ProductVariant"
+  const itemsInCart = input.cart.lines.filter(
+    (item) =>
+      (item.quantity >= configuration.quantity ||
+        input.cart.lines.length >= configuration.quantity) &&
+      item.merchandise.__typename == "ProductVariant"
   );
 
-  const targets = targetsLines.map((line) => {
+  const discountedItems = itemsInCart.map((line) => {
     const variant = line.merchandise;
     if (variant.__typename !== "ProductVariant") throw new Error("");
 
@@ -39,15 +40,15 @@ export default (input: InputQuery): FunctionResult => {
     };
   });
 
-  if (!targets.length) {
+  if (!discountedItems.length) {
     console.error("No cart lines qualify for volume discount.");
     return EMPTY_DISCOUNT;
   }
 
-  return {
+  const result = {
     discounts: [
       {
-        targets,
+        targets: discountedItems,
         value: {
           percentage: {
             value: configuration.percentage.toString(),
@@ -57,4 +58,6 @@ export default (input: InputQuery): FunctionResult => {
     ],
     discountApplicationStrategy: DiscountApplicationStrategy.First,
   };
+
+  return result;
 };
