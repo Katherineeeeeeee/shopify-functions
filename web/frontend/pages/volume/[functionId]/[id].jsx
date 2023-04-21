@@ -10,27 +10,15 @@ import {
   DiscountClass,
   DiscountMethod,
   MethodCard,
-  DiscountStatus,
   RequirementType,
   SummaryCard,
-  UsageLimitsCard,
   onBreadcrumbAction,
 } from "@shopify/discount-app-components";
-import {
-  Banner,
-  LegacyCard,
-  Layout,
-  Page,
-  TextField,
-  PageActions,
-  Spinner,
-} from "@shopify/polaris";
+import { Banner, Layout, Page, PageActions, Spinner } from "@shopify/polaris";
 import { useAuthenticatedFetch } from "../../../hooks";
 import { useEffect, useState } from "react";
 
 const todaysDate = new Date();
-const METAFIELD_NAMESPACE = "$app:volume-discount";
-const METAFIELD_CONFIGURATION_KEY = "function-configuration";
 
 export default function VolumeChange() {
   const authenticatedFetch = useAuthenticatedFetch();
@@ -72,9 +60,6 @@ export default function VolumeChange() {
 }
 
 function VolumeEdit({ discountData, functionId }) {
-  console.log(discountData);
-  const configurationInitial = JSON.parse(discountData.metafield.value);
-
   const authenticatedFetch = useAuthenticatedFetch();
 
   const app = useAppBridge();
@@ -84,17 +69,13 @@ function VolumeEdit({ discountData, functionId }) {
   const {
     fields: {
       discountTitle,
-      discountCode,
       discountMethod,
       combinesWith,
       requirementType,
       requirementSubtotal,
       requirementQuantity,
-      usageTotalLimit,
-      usageOncePerCustomer,
       startDate,
       endDate,
-      configuration,
     },
     submit,
     submitting,
@@ -105,26 +86,11 @@ function VolumeEdit({ discountData, functionId }) {
   } = useForm({
     fields: {
       discountTitle: useField(discountData.discount.title),
-      discountMethod: useField(
-        discountData.discount.__typename === "DiscountAutomaticApp"
-          ? DiscountMethod.Automatic
-          : DiscountMethod.Code
-      ),
-      discountCode: useField(discountData.discount.title),
+      discountMethod: useField(DiscountMethod.Automatic),
       combinesWith: useField(discountData.discount.combinesWith),
       requirementType: useField(RequirementType.None),
       requirementSubtotal: useField("0"),
       requirementQuantity: useField("0"),
-      usageTotalLimit: useField(
-        discountData.discount.__typename === "DiscountAutomaticApp"
-          ? null
-          : discountData.discount.usageLimit
-      ),
-      usageOncePerCustomer: useField(
-        discountData.discount.__typename === "DiscountAutomaticApp"
-          ? false
-          : discountData.discount.appliesOncePerCustomer
-      ),
       startDate: useField(
         discountData.discount.startsAt
           ? new Date(discountData.discount.startsAt)
@@ -135,10 +101,6 @@ function VolumeEdit({ discountData, functionId }) {
           ? new Date(discountData.discount.endsAt)
           : null
       ),
-      configuration: {
-        quantity: useField(configurationInitial.quantity),
-        percentage: useField(configurationInitial.percentage),
-      },
     },
     onSubmit: async (form) => {
       const discount = {
@@ -146,51 +108,15 @@ function VolumeEdit({ discountData, functionId }) {
         combinesWith: form.combinesWith,
         startsAt: form.startDate,
         endsAt: form.endDate,
-        metafields: [
-          {
-            namespace: METAFIELD_NAMESPACE,
-            key: METAFIELD_CONFIGURATION_KEY,
-            type: "json",
-            id: discountData.metafield.id,
-            value: JSON.stringify({
-              quantity: parseInt(form.configuration.quantity),
-              percentage: parseFloat(form.configuration.percentage),
-            }),
-          },
-        ],
+        title: form.discountTitle,
+        id: discountData.id,
       };
 
-      let response;
-      if (form.discountMethod === DiscountMethod.Automatic) {
-        response = await authenticatedFetch("/api/discounts/automatic", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            discount: {
-              ...discount,
-              title: form.discountTitle,
-            },
-            id: discountData.id,
-          }),
-        });
-      } else {
-        response = await authenticatedFetch("/api/discounts/code", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            discount: {
-              ...discount,
-              title: form.discountCode,
-              code: form.discountCode,
-              appliesOncePerCustomer: form.usageOncePerCustomer,
-              usageLimit: form.usageTotalLimit
-                ? Number(form.usageTotalLimit)
-                : null,
-            },
-            id: discountData.id,
-          }),
-        });
-      }
+      const response = await authenticatedFetch("/api/discounts/automatic", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ discount }),
+      });
 
       const data = (await response.json()).data;
       const remoteErrors = data.discountCreate.userErrors;
@@ -249,32 +175,14 @@ function VolumeEdit({ discountData, functionId }) {
               title="Volume"
               discountTitle={discountTitle}
               discountClass={DiscountClass.Product}
-              discountCode={discountCode}
               discountMethod={discountMethod}
+              discountMethodHidden={DiscountMethod.Code}
             />
-            <LegacyCard title="Volume" sectioned>
-              <TextField label="Minimum quantity" {...configuration.quantity} />
-              <TextField
-                label="Discount percentage"
-                {...configuration.percentage}
-                suffix="%"
-              />
-            </LegacyCard>
 
-            {discountMethod.value === DiscountMethod.Code && (
-              <UsageLimitsCard
-                totalUsageLimit={usageTotalLimit}
-                oncePerCustomer={usageOncePerCustomer}
-              />
-            )}
             <CombinationCard
               combinableDiscountTypes={combinesWith}
               discountClass={DiscountClass.Product}
-              discountDescriptor={
-                discountMethod.value === DiscountMethod.Automatic
-                  ? discountTitle.value
-                  : discountCode.value
-              }
+              discountDescriptor={discountTitle.value}
             />
             <ActiveDatesCard
               startDate={startDate}
@@ -287,18 +195,13 @@ function VolumeEdit({ discountData, functionId }) {
           <SummaryCard
             header={{
               discountMethod: discountMethod.value,
-              discountDescriptor:
-                discountMethod.value === DiscountMethod.Automatic
-                  ? discountTitle.value
-                  : discountCode.value,
+              discountDescriptor: discountTitle.value,
               appDiscountType: "Volume",
               isEditing: true,
             }}
             performance={{
               status: discountData.discount.status,
-              usageCount:
-                discountData.discount.codeCount ||
-                discountData.discount.asyncUsageCount,
+              usageCount: discountData.discount.asyncUsageCount,
             }}
             minimumRequirements={{
               requirementType: requirementType.value,
@@ -307,8 +210,8 @@ function VolumeEdit({ discountData, functionId }) {
               currencyCode: currencyCode,
             }}
             usageLimits={{
-              oncePerCustomer: usageOncePerCustomer.value,
-              totalUsageLimit: usageTotalLimit.value,
+              oncePerCustomer: false,
+              totalUsageLimit: false,
             }}
             activeDates={{
               startDate: startDate.value,

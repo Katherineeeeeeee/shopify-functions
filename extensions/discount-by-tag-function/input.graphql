@@ -1,0 +1,23 @@
+query Input {
+  presentmentCurrencyRate
+  cart {
+    lines {
+      cost {
+        subtotalAmount {
+          amount
+          currencyCode
+        }
+      }
+      attribute(key: "_discount") {
+        value
+      }
+      quantity
+      merchandise {
+        __typename
+        ... on ProductVariant {
+          id
+        }
+      }
+    }
+  }
+}
