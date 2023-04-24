@@ -1,0 +1,16 @@
+query Input {
+  cart {
+    lines {
+      quantity
+      merchandise {
+        __typename
+        ... on ProductVariant {
+          id
+          product {
+            isDiscounted: hasAnyTag(tags: ["discount:: buy 2 get 3"])
+          }
+        }
+      }
+    }
+  }
+}
